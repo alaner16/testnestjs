@@ -21,7 +21,8 @@ export class EventsController {
 
   @Post()
   async create(@Body() event: Event) {
-    this.eventsService.create(event);
+    const res = this.eventsService.create(event);
+    return res;
   }
 
   @Get()
@@ -34,30 +35,65 @@ export class EventsController {
     @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
   ) {
     const res = await this.eventsService.findAll();
-
     let filteredData = res;
+    let resp;
+
     if (filter) {
-      filteredData = res.filter((dato) => {
-        return dato.title.includes(filter) || dato.description.includes(filter);
-      });
+      filteredData = this.filter(filter, filteredData);
     }
-
     if (sortBy && sortOrder) {
-      filteredData.sort((a, b) => {
-        const aValue = a[sortBy];
-        const bValue = b[sortBy];
-
-        if (typeof aValue !== 'string' || typeof bValue !== 'string') {
-          return 0;
-        }
-
-        if (sortOrder === 'asc') {
-          return aValue.localeCompare(bValue);
-        } else {
-          return bValue.localeCompare(aValue);
-        }
-      });
+      filteredData = this.sort(sortBy, sortOrder, filteredData);
     }
+    if (page && pageSize) {
+      resp = this.buildPagination(page, pageSize, filteredData);
+    } else {
+      resp = filteredData;
+    }
+    return resp;
+  }
+
+  @Get(':id')
+  async findById(@Param('id') id: string) {
+    const res = await this.eventsService.findById(parseInt(id));
+    return res;
+  }
+
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() event: Event) {
+    const res = await this.eventsService.update(parseInt(id), event);
+    return res;
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    const res = await this.eventsService.delete(parseInt(id));
+    return res;
+  }
+
+  filter(filter: string, data) {
+    return data.filter((dato) => {
+      return dato.title.includes(filter) || dato.description.includes(filter);
+    });
+  }
+
+  sort(sortBy: string, sortOrder: string, data) {
+    return data.sort((a, b) => {
+      const aValue = a[sortBy];
+      const bValue = b[sortBy];
+
+      if (typeof aValue !== 'string' || typeof bValue !== 'string') {
+        return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue.localeCompare(bValue);
+      } else {
+        return bValue.localeCompare(aValue);
+      }
+    });
+  }
+
+  buildPagination(page, pageSize, filteredData) {
     const totalPages = Math.ceil(filteredData.length / pageSize);
 
     page = parseInt(page.toString(), 10);
@@ -79,27 +115,6 @@ export class EventsController {
       prevPage: page > 1 ? page - 1 : null,
     });
 
-    return {
-      ...paginationDto,
-      data: paginatedData,
-    };
-  }
-
-  @Get(':id')
-  async findById(@Param('id') id: string) {
-    const res = await this.eventsService.findById(parseInt(id));
-    return res;
-  }
-
-  @Put(':id')
-  async update(@Param('id') id: string, @Body() event: Event) {
-    const res = await this.eventsService.update(parseInt(id), event);
-    return res;
-  }
-
-  @Delete(':id')
-  async delete(@Param('id') id: string) {
-    const res = await this.eventsService.delete(parseInt(id));
-    return res;
+    return { ...paginationDto, data: paginatedData };
   }
 }
